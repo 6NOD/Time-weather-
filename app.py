@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 API_KEY = 'bd5e378503939ddaee76f12ad7a97608'
 
@@ -25,25 +25,26 @@ def main():
         st.write(f"**Weather:** {data['weather'][0]['description'].title()}")
         st.write(f"**Temperature:** {data['main']['temp']} °C")
 
-        # Calculate time in target location
-        timezone_offset = data['timezone']  # in seconds
-        utc_now = datetime.utcnow().timestamp()
-        local_timestamp = utc_now + timezone_offset
-        local_time = datetime.fromtimestamp(local_timestamp)
-        formatted_time = local_time.strftime("%A, %Y-%m-%d %H:%M:%S")
-        st.write(f"**Local Time in {city}:** {formatted_time}")
+        # Get target city time using UTC + offset
+        timezone_offset_sec = data['timezone']
+        utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        city_time = utc_now + timedelta(seconds=timezone_offset_sec)
+        formatted_city_time = city_time.strftime("%A, %Y-%m-%d %H:%M:%S")
+        st.write(f"**Local Time in {city}:** {formatted_city_time}")
 
-        # Time difference calculation
-        local_offset_hrs = -datetime.now().astimezone().utcoffset().total_seconds() / 3600
-        city_offset_hrs = timezone_offset / 3600
-        diff = city_offset_hrs - local_offset_hrs
+        # Get device local time and offset
+        device_time = datetime.now().astimezone()
+        device_offset_sec = device_time.utcoffset().total_seconds()
 
-        if diff == 0:
+        # Time difference
+        diff_hours = (timezone_offset_sec - device_offset_sec) / 3600
+        if diff_hours == 0:
             time_diff_msg = "Same time zone as your device"
         else:
-            time_diff_msg = f"{abs(diff):.1f} hour(s) {'ahead' if diff > 0 else 'behind'} your local time"
+            time_diff_msg = f"{abs(diff_hours):.1f} hour(s) {'ahead' if diff_hours > 0 else 'behind'} your local time"
 
         st.write(f"**Time Difference:** {time_diff_msg}")
+        st.write(f"**Your Local Time:** {device_time.strftime('%A, %Y-%m-%d %H:%M:%S')}")
 
 if __name__ == '__main__':
     main()
