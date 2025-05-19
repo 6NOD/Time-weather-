@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather & Time Finder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f0f0f0;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input {
+      padding: 10px;
+      width: 60%;
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Weather & Time Finder</h1>
+    <input type="text" id="locationInput" placeholder="Enter a city name" />
+    <button onclick="getInfo()">Get Info</button>
+    <div id="output"></div>
+  </div>
+  <script>
+    async function getInfo() {
+      const city = document.getElementById('locationInput').value;
+      if (!city) return alert('Please enter a city name.');
+
+      const output = document.getElementById('output');
+      output.innerHTML = 'Loading...';
+
+      const weatherApiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
+      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${weatherApiKey}&units=metric`;
+
+      try {
+        // Weather data
+        const weatherRes = await fetch(weatherUrl);
+        const weatherData = await weatherRes.json();
+
+        if (weatherData.cod !== 200) {
+          output.innerHTML = 'City not found.';
+          return;
+        }
+
+        // Target location time
+        const targetTime = new Date().toLocaleString("en-US", { timeZone: weatherData.timezone });
+
+        // User location time
+        const localTime = new Date();
+
+        const timeZoneOffsetMinutes = weatherData.timezone / 60;
+        const targetOffset = timeZoneOffsetMinutes / 60;
+        const userOffset = -localTime.getTimezoneOffset() / 60;
+        const diff = targetOffset - userOffset;
+
+        output.innerHTML = `
+          <strong>${weatherData.name}, ${weatherData.sys.country}</strong><br>
+          Date/Time: ${new Date().toLocaleString("en-US", { timeZone: weatherData.timezone })}<br>
+          Weather: ${weatherData.weather[0].main}, ${weatherData.main.temp} °C<br>
+          Time Difference: ${diff === 0 ? 'Same time zone' : `${Math.abs(diff)} hour(s) ${diff > 0 ? 'ahead' : 'behind'}`}
+        `;
+      } catch (err) {
+        output.innerHTML = 'Error fetching data.';
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
