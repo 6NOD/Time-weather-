@@ -1,91 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather & Time Finder</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #f0f0f0;
-      margin: 0;
-    }
-    .container {
-      text-align: center;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    input {
-      padding: 10px;
-      width: 60%;
-      margin: 10px 0;
-    }
-    button {
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-    #output {
-      margin-top: 20px;
-      text-align: left;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Weather & Time Finder</h1>
-    <input type="text" id="locationInput" placeholder="Enter a city name" />
-    <button onclick="getInfo()">Get Info</button>
-    <div id="output"></div>
-  </div>
-  <script>
-    async function getInfo() {
-      const city = document.getElementById('locationInput').value;
-      if (!city) return alert('Please enter a city name.');
+import streamlit as st
+import requests
+from datetime import datetime
 
-      const output = document.getElementById('output');
-      output.innerHTML = 'Loading...';
+API_KEY = 'bd5e378503939ddaee76f12ad7a97608'
 
-      const weatherApiKey = 'bd5e378503939ddaee76f12ad7a97608';
-      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${weatherApiKey}&units=metric`;
+def get_weather(city):
+    url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric'
+    response = requests.get(url)
+    return response.json()
 
-      try {
-        // Weather data
-        const weatherRes = await fetch(weatherUrl);
-        const weatherData = await weatherRes.json();
+def main():
+    st.set_page_config(page_title="Weather & Time Finder", layout="centered")
+    st.title("Weather & Time Finder")
 
-        if (weatherData.cod !== 200) {
-          output.innerHTML = 'City not found.';
-          return;
-        }
+    city = st.text_input("Enter a city name")
 
-        // Target location time
-        const targetTime = new Date().toLocaleString("en-US", { timeZone: weatherData.timezone });
+    if city:
+        data = get_weather(city)
+        if data.get("cod") != 200:
+            st.error(f"City not found: {data.get('message', '')}")
+            return
 
-        // User location time
-        const localTime = new Date();
+        st.success(f"Location: {data['name']}, {data['sys']['country']}")
+        st.write(f"**Weather:** {data['weather'][0]['description'].title()}")
+        st.write(f"**Temperature:** {data['main']['temp']} °C")
 
-        const timeZoneOffsetMinutes = weatherData.timezone / 60;
-        const targetOffset = timeZoneOffsetMinutes / 60;
-        const userOffset = -localTime.getTimezoneOffset() / 60;
-        const diff = targetOffset - userOffset;
+        # Calculate time in target location
+        timezone_offset = data['timezone']  # in seconds
+        utc_now = datetime.utcnow().timestamp()
+        local_timestamp = utc_now + timezone_offset
+        local_time = datetime.fromtimestamp(local_timestamp)
+        formatted_time = local_time.strftime("%A, %Y-%m-%d %H:%M:%S")
+        st.write(f"**Local Time in {city}:** {formatted_time}")
 
-        output.innerHTML = `
-          <strong>${weatherData.name}, ${weatherData.sys.country}</strong><br>
-          Date/Time: ${new Date().toLocaleString("en-US", { timeZone: weatherData.timezone })}<br>
-          Weather: ${weatherData.weather[0].main}, ${weatherData.main.temp} °C<br>
-          Time Difference: ${diff === 0 ? 'Same time zone' : `${Math.abs(diff)} hour(s) ${diff > 0 ? 'ahead' : 'behind'}`}
-        `;
-      } catch (err) {
-        output.innerHTML = 'Error fetching data.';
-        console.error(err);
-      }
-    }
-  </script>
-</body>
-</html>
+        # Time difference calculation
+        local_offset_hrs = -datetime.now().astimezone().utcoffset().total_seconds() / 3600
+        city_offset_hrs = timezone_offset / 3600
+        diff = city_offset_hrs - local_offset_hrs
+
+        if diff == 0:
+            time_diff_msg = "Same time zone as your device"
+        else:
+            time_diff_msg = f"{abs(diff):.1f} hour(s) {'ahead' if diff > 0 else 'behind'} your local time"
+
+        st.write(f"**Time Difference:** {time_diff_msg}")
+
+if __name__ == '__main__':
+    main()
